@@ -1,0 +1,217 @@
+#include <nbody.hpp>
+
+#include <GL/glut.h>    // Header File For The GLUT Library 
+#include <GL/gl.h>	    // Header File For The OpenGL Library
+#include <GL/glu.h>	    // Header File For The GLu Library
+#include <unistd.h>     // needed to sleep
+
+int window;
+feng::nbody<float> nb;
+float rquad = 0.0f;
+
+
+void glDrawCube()                   // 绘制立方体
+{
+        glBegin(GL_QUADS);          
+        glColor3f(0.4f, 0.6f, 0.4f);
+        // 前面
+        glNormal3f( 0.0f, 0.0f, 1.0f);      
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
+        glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
+        glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);  
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
+        // 后面
+        glNormal3f( 0.0f, 0.0f,-1.0f);      
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);  
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);  
+        glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
+        glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
+        // 上面
+        glNormal3f( 0.0f, 1.0f, 0.0f);      
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);  
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
+        glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f,  1.0f,  1.0f);  
+        glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
+        // 下面
+        glNormal3f( 0.0f,-1.0f, 0.0f);      
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);  
+        glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
+        glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
+        // 右面
+        glNormal3f( 1.0f, 0.0f, 0.0f);      
+        glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
+        glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
+        glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);  
+        glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
+        // 左面
+        glNormal3f(-1.0f, 0.0f, 0.0f);      
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);  
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);  
+    glEnd();                    
+}
+
+
+
+
+/* A general OpenGL initialization function.  Sets all of the initial parameters. */
+void InitGL(int width, int height)	        // We call this right after our OpenGL window is created.
+{
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);		// This Will Clear The Background Color To Black
+  glClearDepth(1.0);				// Enables Clearing Of The Depth Buffer
+  glDepthFunc(GL_LESS);			        // The Type Of Depth Test To Do
+  glEnable(GL_DEPTH_TEST);		        // Enables Depth Testing
+  glShadeModel(GL_SMOOTH);			// Enables Smooth Color Shading
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();				// Reset The Projection Matrix
+
+  gluPerspective(45.0f,(GLfloat)width/(GLfloat)height,0.1f,100.0f);	// Calculate The Aspect Ratio Of The Window
+
+  glMatrixMode(GL_MODELVIEW);
+}
+
+/* The function called when our window is resized (which shouldn't happen, because we're fullscreen) */
+void ReSizeGLScene(int width, int height)
+{
+  if (height==0)				// Prevent A Divide By Zero If The Window Is Too Small
+    height=1;
+
+  glViewport(0, 0, width, height);		// Reset The Current Viewport And Perspective Transformation
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+
+  gluPerspective(45.0f,(GLfloat)width/(GLfloat)height,0.1f,100.0f);
+  glMatrixMode(GL_MODELVIEW);
+}
+
+/* The main drawing function. */
+void DrawGLScene()
+{
+  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);	// Clear The Screen And The Depth Buffer
+  glLoadIdentity();				// Reset The View
+
+  glTranslatef(0.0f,0.0f,-6.0f);		// Move Left 1.5 Units And Into The Screen 6.0
+  //glRotatef(rquad,1.0f,1.0f,1.0f);
+  glRotatef(rquad,0.0f,1.0f,0.0f);
+	
+  glBegin(GL_POINTS);				// start drawing particles
+  glColor3f(0.6f, 0.4f, 0.6f);
+  for( auto p : nb.collection_ )
+    glVertex3f(p.p().x(), p.p().y(), p.p().z()); 
+  glEnd();					// Done Drawing The particles
+
+  glDrawCube();
+
+/*
+  glBegin(GL_LINE_LOOP);				
+  glColor3f(0.4f, 0.6f, 0.4f);
+  glVertex3f( 1.0f, 1.0f,-1.0f);        // Top Right Of The Quad (Top)
+  glVertex3f(-1.0f, 1.0f,-1.0f);        // Top Left Of The Quad (Top)
+  glVertex3f(-1.0f, 1.0f, 1.0f);        // Bottom Left Of The Quad (Top)
+  glVertex3f( 1.0f, 1.0f, 1.0f);        // Bottom Right Of The Quad (Top)
+  glEnd();
+  glBegin(GL_LINE_LOOP);				
+  glVertex3f( 1.0f,-1.0f, 1.0f);        // Top Right Of The Quad (Bottom)
+  glVertex3f(-1.0f,-1.0f, 1.0f);        // Top Left Of The Quad (Bottom)
+  glVertex3f(-1.0f,-1.0f,-1.0f);        // Bottom Left Of The Quad (Bottom)
+  glVertex3f( 1.0f,-1.0f,-1.0f);        // Bottom Right Of The Quad (Bottom)
+  glEnd();
+  glBegin(GL_LINE_LOOP);				
+  glVertex3f( 1.0f, 1.0f, 1.0f);        // Top Right Of The Quad (Front)
+  glVertex3f(-1.0f, 1.0f, 1.0f);        // Top Left Of The Quad (Front)
+  glVertex3f(-1.0f,-1.0f, 1.0f);        // Bottom Left Of The Quad (Front)
+  glVertex3f( 1.0f,-1.0f, 1.0f);        // Bottom Right Of The Quad (Front)
+  glEnd();
+  glBegin(GL_LINE_LOOP);				
+  glVertex3f( 1.0f,-1.0f,-1.0f);        // Top Right Of The Quad (Back)
+  glVertex3f(-1.0f,-1.0f,-1.0f);        // Top Left Of The Quad (Back)
+  glVertex3f(-1.0f, 1.0f,-1.0f);        // Bottom Left Of The Quad (Back)
+  glVertex3f( 1.0f, 1.0f,-1.0f);        // Bottom Right Of The Quad (Back)
+  glEnd();
+  glBegin(GL_LINE_LOOP);				
+  glVertex3f(-1.0f, 1.0f, 1.0f);        // Top Right Of The Quad (Left)
+  glVertex3f(-1.0f, 1.0f,-1.0f);        // Top Left Of The Quad (Left)
+  glVertex3f(-1.0f,-1.0f,-1.0f);        // Bottom Left Of The Quad (Left)
+  glVertex3f(-1.0f,-1.0f, 1.0f);        // Bottom Right Of The Quad (Left)
+  glEnd();
+  glBegin(GL_LINE_LOOP);				
+  glVertex3f( 1.0f, 1.0f,-1.0f);            // Top Right Of The Quad (Right)
+  glVertex3f( 1.0f, 1.0f, 1.0f);        // Top Left Of The Quad (Right)
+  glVertex3f( 1.0f,-1.0f, 1.0f);        // Bottom Left Of The Quad (Right)
+  glVertex3f( 1.0f,-1.0f,-1.0f);        // Bottom Right Of The Quad (Right)
+  glEnd();                  // Done Drawing The Cube
+*/
+
+  nb();
+  rquad += 0.4f;
+
+  // swap the buffers to display, since double buffering is used.
+  glutSwapBuffers();
+}
+
+/* The function called whenever a key is pressed. */
+void keyPressed(unsigned char key, int x, int y) 
+{
+    /* avoid thrashing this call */
+    usleep(100);
+
+    /* If escape is pressed, kill everything. */
+    if (key == 27) 
+    { 
+      /* shut down our window */
+      glutDestroyWindow(window); 
+      
+      /* exit the program...normal termination. */
+      exit(0);                   
+    }
+}
+
+int main(int argc, char **argv) 
+{  
+  /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
+     X Windows - look at its documentation at http://reality.sgi.com/mjk/spec3/spec3.html */  
+  glutInit(&argc, argv);  
+
+  /* Select type of Display mode:   
+     Double buffer 
+     RGBA color
+     Alpha components supported 
+     Depth buffered for automatic clipping */  
+  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA | GLUT_DEPTH);  
+
+  /* get a 800 x 600 window */
+  glutInitWindowSize(800, 600);  
+
+  /* the window starts at the upper left corner of the screen */
+  glutInitWindowPosition(0, 0);  
+
+  /* Open a window */  
+  window = glutCreateWindow("Nbody simulation");  
+
+  /* Register the function to do all our OpenGL drawing. */
+  glutDisplayFunc(&DrawGLScene);  
+
+  /* Go fullscreen.  This is as soon as possible. */
+  glutFullScreen();
+
+  /* Even if there are no events, redraw our gl scene. */
+  glutIdleFunc(&DrawGLScene);
+
+  /* Register the function called when our window is resized. */
+  glutReshapeFunc(&ReSizeGLScene);
+
+  /* Register the function called when the keyboard is pressed. */
+  glutKeyboardFunc(&keyPressed);
+
+  /* Initialize our window. */
+  InitGL(640, 480);
+  
+  /* Start Event Processing Engine */  
+  glutMainLoop();  
+
+  return 1;
+}

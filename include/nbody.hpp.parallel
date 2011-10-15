@@ -1,0 +1,300 @@
+#ifndef _NBODY_HPP_INCLUDED_SDOFIJ4EO8USFDLIK4T587DF98GVBIKFSD987SFDIUYVC98FDS987VXC987SDF8VXC987SFD987XVCIOUYSFD98SFD7DI
+#define _NBODY_HPP_INCLUDED_SDOFIJ4EO8USFDLIK4T587DF98GVBIKFSD987SFDIUYVC98FDS987VXC987SDF8VXC987SFD987XVCIOUYSFD98SFD7DI
+
+#include <particle.hpp>
+#include <vg.hpp>
+
+#include <vector>
+#include <cstddef>
+#include <iostream>
+#include <thread>
+
+namespace feng
+{
+
+    template< typename T >
+    struct nbody
+    {
+        typedef T                                       value_type;
+        typedef particle<value_type>                    particle_type;
+        typedef typename particle_type::position_type   position_type;
+        typedef typename particle_type::velocity_type   velocity_type;
+        typedef typename particle_type::force_type      force_type;
+        typedef std::vector<particle_type>              particle_collection_type;
+
+        particle_collection_type collection_;
+        value_type x_min_, x_max_;
+        value_type y_min_, y_max_;
+        value_type z_min_, z_max_;
+
+        //octree
+        particle_collection_type tree_[4][4][4];
+        particle_collection_type far_collection_;
+
+        nbody( const std::size_t n = 2000,
+               const value_type x_min = -1, const value_type x_max = 1,
+               const value_type y_min = -1, const value_type y_max = 1,
+               const value_type z_min = -1, const value_type z_max = 1 )
+            :   x_min_( x_min ), x_max_( x_max ),
+                y_min_( y_min ), y_max_( y_max ),
+                z_min_( z_min ), z_max_( z_max )
+        { 
+            //random_initialize(n); 
+        }
+
+        void operator()( const value_type dt = 0.1 ) 
+        {
+            build_tree();
+            collection_.clear();
+            far_collection_.clear();
+            update( dt );
+        }
+
+        void update( const value_type dt )
+        {
+            const auto fun = [&]( size_t i, size_t j, size_t k, size_t m, size_t n ) 
+            {
+                for ( size_t ii = m; ii != n; ++ ii )
+                {
+                particle_type& particle = tree_[i][j][k][ii];
+                force_type f = this -> gravity( particle, i, j, k, ii ) + this -> far_gravity( far_collection_, particle );
+                const value_type m = particle.m();
+                force_type a = f/m;    
+                position_type p = particle.p();
+                velocity_type v = particle.v();
+                velocity_type p_tmp1 = dt * ( v + 0.5 * a * dt ); 
+                position_type dp1(p_tmp1.x(), p_tmp1.y(), p_tmp1.z());
+                velocity_type dv1 = dt * a;
+                particle_type p_k1( m, p + 0.5 * dp1, v + 0.5 * dv1 ); // 0.5 k1 
+
+                f = this -> gravity( p_k1, i, j, k, ii ) + this -> far_gravity( far_collection_, particle );
+                a = f/m;
+                p = p_k1.p();
+                v = p_k1.v();
+                velocity_type p_tmp2 = dt * ( v + 0.5 * a * dt ); 
+                position_type dp2(p_tmp2.x(), p_tmp2.y(), p_tmp2.z());
+                velocity_type dv2 = dt * a;
+                particle_type p_k2( m, p + 0.5 * dp2, v + 0.5 * dv2 ); // 0.5 k2
+
+                f = this -> gravity( p_k1, i, j, k, ii ) + this -> far_gravity( far_collection_, particle );
+                a = f/m;
+                p = p_k2.p();
+                v = p_k2.v();
+                velocity_type p_tmp3 = dt * ( v + 0.5 * a * dt ); 
+                position_type dp3(p_tmp3.x(), p_tmp3.y(), p_tmp3.z());
+                velocity_type dv3 = dt * a;
+                particle_type p_k3( m, p + dp3, v + dv3 ); // k3 
+
+                f = this -> gravity( p_k1, i, j, k, ii ) + this -> far_gravity( far_collection_, particle );
+                a = f/m;
+                p = p_k3.p();
+                v = p_k3.v();
+                velocity_type p_tmp4 = dt * ( v + 0.5 * a * dt ); 
+                position_type dp4(p_tmp4.x(), p_tmp4.y(), p_tmp4.z());
+                velocity_type dv4 = dt * a;
+                particle_type p_k4( m, p + dp4, v + dv4 ); // k4
+
+                p = particle.p() + 0.16666666666666666666666667 * ( dp1 + dp2 + dp2 + dp3 + dp3 + dp4 );
+                v = particle.v() + 0.16666666666666666666666667 * ( dv1 + dv2 + dv2 + dv3 + dv3 + dv4 );
+               
+                collection_.push_back( particle_type( m, p, v ) );
+                }
+            };
+
+            //for_each particle in collection, calculate its postion after dt
+            for ( std::size_t i = 0; i < 4; ++i )
+                for ( std::size_t j = 0; j < 4; ++j )
+                    for ( std::size_t k = 0; k < 4; ++k )
+                    {
+                        const std::size_t cpus = std::thread::hardware_concurrency(); 
+
+                        const std::size_t time_step = tree_[i][j][k].size();
+                        if ( 0 ==  cpus )//only one cpu
+                            fun( i, j, k, 0, time_step );
+                        else
+                        {
+                            const std::size_t factor = time_step / cpus;
+                            std::thread threads[cpus];
+                            //create thead
+                            for ( std::size_t ii = 0; ii < cpus; ++ii )
+                            {
+                                threads[i] = std::thread( fun, i, j, k, ii*factor, (ii+1)*factor );
+                            }
+                            fun( i, j, k, cpus*factor, time_step );
+                            //waiting for all threads to join
+                            std::for_each( threads, threads+cpus-1, [](std::thread& t){ t.join(); } );
+                        }
+                    }
+            for ( std::size_t i = 0; i < far_collection_.size(); ++i )
+            {
+                particle_type& particle = far_collection_[i];
+                force_type f = particle.gravity( as_particle(collection_) );
+                const value_type m = particle.m();
+                force_type a = f/m;    
+                position_type p = particle.p();
+                velocity_type v = particle.v();
+                velocity_type p_tmp1 = dt * ( v + 0.5 * a * dt ); 
+                position_type dp(p_tmp1.x(), p_tmp1.y(), p_tmp1.z());
+                velocity_type dv = dt * a;
+                collection_.push_back( particle_type( m, p+dp, v+dv ) );
+            }
+        }
+
+        // input :
+        // p        --      particle 
+        // i j k    --      index of octree tree_
+        // index    --      index of particle in collection of tree_[i][j][k]
+        const typename particle_type::force_type
+        gravity( const particle_type& p, const std::size_t i, const std::size_t j, const std::size_t k, const size_t index )
+        {
+            typename particle_type::force_type ans(0.0, 0.0, 0.0);
+            assert( i < 4 && j < 4 && k < 4 );
+            for ( std::size_t ii = 0; ii < 4; ++ii )
+                for ( std::size_t jj = 0; jj < 4; ++jj )
+                    for ( std::size_t kk = 0; kk < 4; ++ kk )
+                    {
+                        if ( i == ii && j == jj && k == kk )
+                            ans += near_gravity( tree_[ii][jj][kk], p, index );
+                        else if ( 1 == abs(i-ii) || 1 == abs(j-jj) || 1 == abs(k-kk) )
+                            ans += near_gravity( tree_[ii][jj][kk], p );
+                        else
+                            ans += far_gravity( tree_[ii][jj][kk], p );
+                    }
+            return ans;
+        }
+
+        const typename particle_type::force_type
+        near_gravity( const particle_collection_type& collection, const particle_type& p, const std::size_t i ) const 
+        {
+            typename particle_type::force_type ans;
+            for ( unsigned int ii = 0; ii < collection.size(); ++ii )
+                if ( i != ii )
+                    ans += p.gravity( collection[ii] );
+            return ans;
+        }
+
+        const typename particle_type::force_type
+        near_gravity( const particle_collection_type& collection, const particle_type& p ) const 
+        {
+            typename particle_type::force_type ans;
+
+            for ( auto pp : collection )
+            {
+                ans += p.gravity( pp );
+            }
+
+            return ans;
+        }
+
+        const typename particle_type::force_type
+        far_gravity( const particle_collection_type& collection, const particle_type& p ) const 
+        {
+            const typename particle_type::force_type ans = p.gravity( as_particle(collection) );
+            return ans;
+        }
+
+        const particle_type
+        as_particle( const particle_collection_type& collection ) const 
+        {
+            value_type m = 0.0;
+            position_type mp( 0.0, 0.0, 0.0 );
+            velocity_type mv( 0.0, 0.0, 0.0 );
+
+            if ( collection.size() == 0 )
+                return particle_type();
+
+            for ( auto p : collection )
+            {
+                m += p.m();
+                mp += p.m() * p.p();
+                mv += p.m() * p.v();
+            }
+
+            particle_type ans( m, mp / m, mv / m );
+            return ans;
+        }
+
+        const particle_type
+        as_particle( ) const
+        {
+            return as_particle( collection_ );
+        }
+
+        void random_initialize (    const std::size_t n = 100,
+                                    //const value_type m_min = 1.0, const value_type m_max = 10.0,
+                                    const value_type m_min = 1.0e-5, const value_type m_max = 1.0e-4,
+                                    const value_type v_min = 0.0, const value_type v_max = 1.0e-10 )
+        {
+            vg::variate_generator<value_type> vg;
+
+            collection_.clear();
+            collection_.reserve(n);
+            for ( std::size_t i = 0; i < n; ++i )
+            {
+                particle_type p;
+                p.m() = m_min + vg() * ( m_max - m_min );
+                p.v().x() = v_min + vg() * ( v_max - v_min );
+                p.v().y() = v_min + vg() * ( v_max - v_min );
+                p.v().z() = v_min + vg() * ( v_max - v_min );
+                p.p().x() = x_min_ + vg() * ( x_max_ - x_min_ );;
+                p.p().y() = y_min_ + vg() * ( x_max_ - y_min_ );;
+                p.p().z() = z_min_ + vg() * ( x_max_ - z_min_ );;
+                collection_.push_back( p );
+            }
+        }
+
+        void build_tree()
+        {
+            for ( std::size_t i = 0; i < 4; ++i )
+                for ( std::size_t j = 0; j < 4; ++j )
+                    for ( std::size_t k = 0; k < 4; ++k )
+                        { tree_[i][j][k].clear(); }
+
+            const value_type x1 = 0.25 * ( x_min_ + x_min_ + x_min_ + x_max_ );
+            const value_type x2 = 0.5 * ( x_min_ + x_max_ );
+            const value_type x3 = 0.25 * ( x_min_ + x_max_ + x_max_ + x_max_ );
+            const value_type y1 = 0.25 * ( y_min_ + y_min_ + y_min_ + y_max_ );
+            const value_type y2 = 0.5 * ( y_min_ + y_max_ );
+            const value_type y3 = 0.25 * ( y_min_ + y_max_ + y_max_ + y_max_ );
+            const value_type z1 = 0.25 * ( z_min_ + z_min_ + z_min_ + z_max_ );
+            const value_type z2 = 0.5 * ( z_min_ + z_max_ );
+            const value_type z3 = 0.25 * ( z_min_ + z_max_ + z_max_ + z_max_ );
+
+        for ( auto p : collection_ )
+            {
+                const std::size_t i =   p.p().x() < x1 ? 0 : 
+                                        p.p().x() < x2 ? 1 :
+                                        p.p().x() < x3 ? 2 :
+                                        p.p().x() < x_max_ ? 3 :
+                                        4;
+                const std::size_t j =   p.p().y() < y1 ? 0 : 
+                                        p.p().y() < y2 ? 1 :
+                                        p.p().y() < y3 ? 2 :
+                                        p.p().y() < y_max_ ? 3 :
+                                        4;
+                const std::size_t k =   p.p().z() < z1 ? 0 : 
+                                        p.p().z() < z2 ? 1 :
+                                        p.p().z() < z3 ? 2 :
+                                        p.p().z() < z_max_ ? 3 :
+                                        4;
+                if ( 4 == i || 4 == j || 4 == k ) far_collection_.push_back( p );
+                else tree_[i][j][k].push_back( p );
+            }
+        }
+
+    };
+
+    template< typename T >
+    std::ostream&
+    operator << ( std::ostream& os, const nbody<T>& nb )
+    {
+       for ( auto p : nb.collection_ )
+           os << p << "\n";
+           //os << p.m() << " " << p.p() << " " << p.v() << "\n";
+       return os;
+    }
+
+}//namespace feng
+
+#endif//_NBODY_HPP_INCLUDED_SDOFIJ4EO8USFDLIK4T587DF98GVBIKFSD987SFDIUYVC98FDS987VXC987SDF8VXC987SFD987XVCIOUYSFD98SFD7DI
+

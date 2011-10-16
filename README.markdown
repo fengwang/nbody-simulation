@@ -16,16 +16,16 @@ Also Opengl is employed to visualize the simulation result.
 ##Algorithms
 
 ###Integration Algorithm 
-Using classic Runge - Kutta method.
+Using classic Runge-Kutta method.
 
 http://math.fullerton.edu/mathews/n2003/RungeKuttaMod.html
 
 ###Simulation Algorithm
-Barnes - Hut simulation, order ( n log(n) )
+Barnes-Hut simulation
 
 J. Barnes and P. Hut (December 1986). "A hierarchical O(N log N) force-calculation algorithm". Nature 324 (4): 446-449. doi:10.1038/324446a0.
 
-The volume iss divided up into cubic cells in an octree, so that only particles from nearby cells need to be treated individually, and particles in distant cells can be treated as a single large particle centered at its center of mass.
+The volume is divided up into cubic cells in an octree, so that only particles from nearby cells need to be treated individually, and particles in distant cells can be treated as a single large particle centered at its center of mass.
                                                                                                                
                                                                                                                
 ###Parallel

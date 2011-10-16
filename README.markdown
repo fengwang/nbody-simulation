@@ -14,12 +14,12 @@ Also Opengl is employed to visualize the simulation result.
 ##Algorithms
 
 ###Integration Algorithm 
-Using classic Runge¨CKutta method.
+Using classic Runge - Kutta method.
 
 http://math.fullerton.edu/mathews/n2003/RungeKuttaMod.html
 
 ###Simulation Algorithm
-Barnes¨CHut simulation, order ( n log(n) )
+Barnes - Hut simulation, order ( n log(n) )
 
 J. Barnes and P. Hut (December 1986). "A hierarchical O(N log N) force-calculation algorithm". Nature 324 (4): 446-449. doi:10.1038/324446a0.
 
@@ -36,7 +36,7 @@ Using c++0x thread provided by pthread.
 ##Discussion
 
 ##Author
-[Wang Feng] (wanng.fenng@gmail.com) 
+**Wang Feng** wanng.fenng@gmail.com 
 
 ##License
 Licensed under the GPLv3.

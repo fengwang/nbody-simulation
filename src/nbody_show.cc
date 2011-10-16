@@ -78,7 +78,7 @@ static void draw_nbody()
     glPushMatrix();
     glTranslatef( 0, 0, 0.0 );
     glMaterialfv( GL_FRONT, GL_AMBIENT_AND_DIFFUSE, nbody_mat );
-    glPointSize( 5.0f );
+    glPointSize( 2.0f );
     glBegin( GL_POINTS );             // start drawing particles
     glColor3f( 1.0f, 1.0f, 1.0f );
     for ( auto p : nb.collection_ )

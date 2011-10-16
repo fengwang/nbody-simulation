@@ -1,8 +1,10 @@
 ##Introduction
 
-Consider n point masses m1, ... ,mn in three-dimensional (physical) space. 
+This is a simulation of a dynamical system of particles, under the influence of gravity. 
+
+Consider n point masses m_1, ... ,m_n in three-dimensional space. 
 Suppose that the force of attraction experienced between each pair of particles is Newtonian. 
-Then, if the initial positions in space and initial velocities are specified for every particle at some present instant t0, 
+Then, if the initial positions in space and initial velocities are specified for every particle at some present instant t_0, 
 determine the position of each particle at every future (or past) moment of time.
 
 ###Configuration
@@ -23,6 +25,9 @@ Barnes - Hut simulation, order ( n log(n) )
 
 J. Barnes and P. Hut (December 1986). "A hierarchical O(N log N) force-calculation algorithm". Nature 324 (4): 446-449. doi:10.1038/324446a0.
 
+The volume iss divided up into cubic cells in an octree, so that only particles from nearby cells need to be treated individually, and particles in distant cells can be treated as a single large particle centered at its center of mass.
+                                                                                                               
+                                                                                                               
 ###Parallel
 Using c++0x thread provided by pthread.
 

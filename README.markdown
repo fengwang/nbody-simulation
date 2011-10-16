@@ -28,13 +28,10 @@ Using c++0x thread provided by pthread.
 
 ##Simulation Result
 
-N = 3    ------- file  video/nbody_3.mkv
-
-N = 30   ------- file  video/nbody_30.mkv
-
-N = 300  ------- file  video/nbody_300.mkv
-
-N = 1000 ------- file  video/nbody_3000.mkv
+* N = 3    ------- file  video/nbody_3.mkv  
+* N = 30   ------- file  video/nbody_30.mkv  
+* N = 300  ------- file  video/nbody_300.mkv  
+* N = 1000 ------- file  video/nbody_3000.mkv  
 
 ##Discussion
 

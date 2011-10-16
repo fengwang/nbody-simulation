@@ -35,3 +35,8 @@ Using c++0x thread provided by pthread.
 
 ##Discussion
 
+##Author
+[Wang Feng] (wanng.fenng@gmail.com) 
+
+##License
+Licensed under the GPLv3.

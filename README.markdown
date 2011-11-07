@@ -1,6 +1,6 @@
 ##Introduction
 
-This is a simulation of a dynamical system of particles, under the influence of gravity. 
+This is a 3D simulation of a dynamical system of particles, under the influence of gravity. 
 
 Consider n point masses m_1, ... ,m_n in three-dimensional space. 
 Suppose that the force of attraction experienced between each pair of particles is Newtonian. 
